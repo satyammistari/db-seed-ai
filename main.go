@@ -7,11 +7,11 @@ import (
 	"os"
 	"strings"
 
-	"github.com/satyammistari/db-seed-ai/generator"
-	"github.com/satyammistari/db-seed-ai/inserter"
-	"github.com/satyammistari/db-seed-ai/reporter"
-	"github.com/satyammistari/db-seed-ai/schema"
-	"github.com/satyammistari/db-seed-ai/validator"
+	"github.com/satyammistari/seeddb/internal/generator"
+	"github.com/satyammistari/seeddb/internal/inserter"
+	"github.com/satyammistari/seeddb/internal/reporter"
+	"github.com/satyammistari/seeddb/internal/schema"
+	"github.com/satyammistari/seeddb/internal/validator"
 )
 
 const version = "0.1.0"
@@ -42,9 +42,9 @@ func printUsage() {
 	fmt.Fprint(os.Stderr, `db-seed-ai — generate seed data with local AI
 
 Usage:
-  db-seed-ai preview  --schema <file> [--table <name>] [--rows N] [--model M]
-  db-seed-ai seed     --schema <file> --db <conn> [--table <name>] [--rows N] [--dry-run] [--model M] [--batch-size N] [--style S]
-  db-seed-ai validate --schema <file> [--rows N]
+  seeddb preview  --schema <file> [--table <name>] [--rows N] [--model M]
+  seeddb seed     --schema <file> --db <conn> [--table <name>] [--rows N] [--dry-run] [--model M] [--batch-size N] [--style S]
+  seeddb validate --schema <file> [--rows N]
 
 Commands:
   preview   Show generated rows (no DB)

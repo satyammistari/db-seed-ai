@@ -7,21 +7,18 @@ import (
 	"github.com/satyammistari/seeddb/internal/schema"
 )
 
-// BuildPrompt creates the text we send to DeepSeek/Ollama
-// This is the most important function in the project
-// Better prompt = better data quality
-//
+// BuildPrompt creates the text we send to Ollama.
 // It tells the AI:
-// 1. What table to generate for
-// 2. What columns exist and their rules
-// 3. What values are allowed (CHECK constraints)
-// 4. What FK values already exist in the DB
-// 5. Exactly what format to return
+//  1. What table to generate for
+//  2. What columns exist and their rules
+//  3. What values are allowed (CHECK constraints)
+//  4. What FK values already exist in the DB
+//  5. Exactly what format to return
 func BuildPrompt(
-	table      *schema.Table,
-	numRows    int,
+	table *schema.Table,
+	numRows int,
 	fullSchema *schema.Schema,
-	style      string,
+	style string,
 	existingIDs map[string][]interface{},
 ) string {
 	return fmt.Sprintf(
@@ -72,116 +69,77 @@ Generate the JSON array for table %s now:`,
 	)
 }
 
-// formatColumnDefs builds the column list for the prompt
-// Tells AI: column name, type, and what rules apply
-//
+// formatColumnDefs builds the column list for the prompt.
 // Example output:
-//   - email: VARCHAR(255) [REQUIRED] [MUST BE UNIQUE]
-//   - user_id: INTEGER [REQUIRED] [FK → users.id]
-//   - status: VARCHAR(20) [ONLY ALLOWED: pending, paid, shipped]
+//   - email: text [REQUIRED] [MUST BE UNIQUE]
+//   - user_id: integer [REQUIRED] [FK → users.id]
+//   - status: text [ONLY ALLOWED: pending, paid, shipped]
 func formatColumnDefs(t *schema.Table) string {
 	var sb strings.Builder
 
 	for _, col := range t.NonAutoColumns() {
-		// Start with: "  - columnname: DATATYPE"
-		sb.WriteString(fmt.Sprintf(
-			"  - %s: %s", col.Name, col.DataType,
-		))
+		sb.WriteString(fmt.Sprintf("  - %s: %s", col.Name, col.Type))
 
-		// Add length for VARCHAR(255) style types
-		if col.MaxLength > 0 {
-			sb.WriteString(fmt.Sprintf(
-				"(%d)", col.MaxLength,
-			))
-		}
-
-		// Required = NOT NULL in schema
-		if !col.IsNullable {
+		if col.NotNull {
 			sb.WriteString(" [REQUIRED]")
 		}
-
-		// Unique = UNIQUE constraint in schema
-		if col.IsUnique {
+		if col.Unique {
 			sb.WriteString(" [MUST BE UNIQUE]")
 		}
-
-		// Foreign key = REFERENCES other_table(col)
-		if col.IsForeignKey && col.References != nil {
+		if col.ForeignKey != nil {
 			sb.WriteString(fmt.Sprintf(
 				" [FK → %s.%s]",
-				col.References.Table,
-				col.References.Column,
+				col.ForeignKey.RefTable,
+				col.ForeignKey.RefColumn,
 			))
 		}
-
-		// CHECK IN constraint — only allowed values
-		if len(col.AllowedValues) > 0 {
+		if len(col.CheckIn) > 0 {
 			sb.WriteString(fmt.Sprintf(
 				" [ONLY ALLOWED VALUES: %s]",
-				strings.Join(col.AllowedValues, ", "),
+				strings.Join(col.CheckIn, ", "),
 			))
 		}
-
 		sb.WriteString("\n")
 	}
-
 	return sb.String()
 }
 
-// formatConstraints writes rules in plain English
-// Humans understand "MUST NOT be null" better than SQL
-// AI models also respond better to plain English rules
-//
+// formatConstraints writes rules in plain English.
 // Example output:
 //   - email MUST NOT be null or empty
 //   - email MUST be unique across all rows
-//   - status MUST be one of: pending | paid | shipped
-//   - user_id MUST be a value from EXISTING FK VALUES list
+//   - status MUST be exactly one of: pending | paid | shipped
 func formatConstraints(
-	t           *schema.Table,
+	t *schema.Table,
 	existingIDs map[string][]interface{},
 ) string {
 	var constraints []string
 
 	for _, col := range t.NonAutoColumns() {
-
-		// NOT NULL rule
-		if !col.IsNullable {
+		if col.NotNull {
+			constraints = append(constraints,
+				fmt.Sprintf("  - %s MUST NOT be null or empty", col.Name),
+			)
+		}
+		if col.Unique {
 			constraints = append(constraints,
 				fmt.Sprintf(
-					"  - %s MUST NOT be null or empty",
+					"  - %s MUST be unique — no two rows can have the same value",
 					col.Name,
 				),
 			)
 		}
-
-		// UNIQUE rule
-		if col.IsUnique {
-			constraints = append(constraints,
-				fmt.Sprintf(
-					"  - %s MUST be unique — "+
-						"no two rows can have the same value",
-					col.Name,
-				),
-			)
-		}
-
-		// CHECK IN constraint rule
-		if len(col.AllowedValues) > 0 {
+		if len(col.CheckIn) > 0 {
 			constraints = append(constraints,
 				fmt.Sprintf(
 					"  - %s MUST be exactly one of: %s",
 					col.Name,
-					strings.Join(col.AllowedValues, " | "),
+					strings.Join(col.CheckIn, " | "),
 				),
 			)
 		}
-
-		// FK rule — most important constraint
-		// Without this AI invents IDs that don't exist
-		if col.IsForeignKey {
+		if col.ForeignKey != nil {
 			if ids, ok := existingIDs[col.Name]; ok && len(ids) > 0 {
-				// Show first 10 valid IDs as examples
 				shown := ids
 				if len(shown) > 10 {
 					shown = shown[:10]
@@ -192,8 +150,7 @@ func formatConstraints(
 				}
 				constraints = append(constraints,
 					fmt.Sprintf(
-						"  - %s MUST be one of these "+
-							"exact values: [%s]",
+						"  - %s MUST be one of these exact values: [%s]",
 						col.Name,
 						strings.Join(vals, ", "),
 					),
@@ -201,8 +158,7 @@ func formatConstraints(
 			} else {
 				constraints = append(constraints,
 					fmt.Sprintf(
-						"  - %s is a foreign key — "+
-							"use small integers like 1, 2, 3",
+						"  - %s is a foreign key — use small integers like 1, 2, 3",
 						col.Name,
 					),
 				)
@@ -213,14 +169,10 @@ func formatConstraints(
 	if len(constraints) == 0 {
 		return "  No special constraints"
 	}
-
 	return strings.Join(constraints, "\n")
 }
 
-// formatStyleHints adds extra instructions based on style flag
-// --style realistic = names look real, emails match names
-// --style edge-cases = NULLs, boundary values, special chars
-// --style minimal = short simple values
+// formatStyleHints adds extra instructions based on style flag.
 func formatStyleHints(style string) string {
 	switch style {
 	case "realistic":
@@ -254,39 +206,31 @@ STYLE HINTS for minimal data:
 	}
 }
 
-// formatExistingIDs shows the AI what FK values exist
-// This is the key to making FK relationships work
-//
+// formatExistingIDs shows the AI what FK reference IDs exist.
 // Example output:
-//   user_id: [1, 2, 3, 4, 5, 8, 12]
-//   category_id: [1, 2, 3]
-func formatExistingIDs(
-	existingIDs map[string][]interface{},
-) string {
+//
+//	user_id: [1, 2, 3, 4, 5, 8, 12]
+//	category_id: [1, 2, 3]
+func formatExistingIDs(existingIDs map[string][]interface{}) string {
 	if len(existingIDs) == 0 {
 		return "  This table has no foreign keys"
 	}
 
 	var sb strings.Builder
-
 	for col, ids := range existingIDs {
-		// Only show max 20 IDs to keep prompt short
 		shown := ids
 		if len(shown) > 20 {
 			shown = shown[:20]
 		}
-
 		vals := make([]string, len(shown))
 		for i, v := range shown {
 			vals[i] = fmt.Sprintf("%v", v)
 		}
-
 		sb.WriteString(fmt.Sprintf(
 			"  %s: [%s]\n",
 			col,
 			strings.Join(vals, ", "),
 		))
 	}
-
 	return sb.String()
 }

@@ -125,3 +125,5 @@ func flattenArgs(columns []string, rows []map[string]interface{}) []interface{} 
 	}
 	return args
 }
+
+

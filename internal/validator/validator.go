@@ -3,7 +3,7 @@ package validator
 import (
 	"fmt"
 
-	"github.com/satyammistari/db-seed-ai/schema"
+	"github.com/satyammistari/seeddb/internal/schema"
 )
 
 // ValidateRow checks one row against the table schema.
@@ -52,3 +52,5 @@ func ValidateRows(t *schema.Table, rows []map[string]interface{}) []string {
 	}
 	return errs
 }
+
+

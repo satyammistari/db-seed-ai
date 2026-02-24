@@ -42,3 +42,5 @@ CREATE TABLE orders (
 		t.Errorf("orders.user_id should reference users")
 	}
 }
+
+
