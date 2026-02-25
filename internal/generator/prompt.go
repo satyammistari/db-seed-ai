@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/satyammistari/seeddb/internal/schema"
+	"github.com/satyammistari/db-seed-ai/internal/schema"
 )
 
 // BuildPrompt creates the text we send to Ollama.
@@ -48,8 +48,11 @@ OUTPUT RULES — FOLLOW EXACTLY:
 - Each element must be a JSON object with {} braces
 - All keys must be column names in double quotes
 - Skip SERIAL and AUTO_INCREMENT primary key columns
+- COMPLETE ALL %d ROWS - do not stop early
+- Ensure the final row is complete and the array is properly closed with ]
 
 START YOUR RESPONSE WITH [ AND NOTHING ELSE.
+END YOUR RESPONSE WITH ] AND NOTHING ELSE.
 
 EXAMPLE of correct output format:
 [
@@ -57,7 +60,8 @@ EXAMPLE of correct output format:
   {"name": "James Rodriguez", "email": "james@mail.com"}
 ]
 
-Generate the JSON array for table %s now:`,
+Generate the complete JSON array with exactly %d rows for table %s now:`,
+		numRows,
 		numRows,
 		table.Name,
 		formatColumnDefs(table),
@@ -234,3 +238,5 @@ func formatExistingIDs(existingIDs map[string][]interface{}) string {
 	}
 	return sb.String()
 }
+
+

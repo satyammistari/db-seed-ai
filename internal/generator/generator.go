@@ -1,5 +1,4 @@
 package generator
-
 import (
 	"bytes"
 	"encoding/json"
@@ -7,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/satyammistari/seeddb/internal/schema"
+	"github.com/satyammistari/db-seed-ai/internal/schema"
 )
 
 // Generate calls Ollama to produce rows for a single table.
@@ -150,16 +149,70 @@ func parseJSONResponse(raw string) ([]map[string]interface{}, error) {
 	}
 
 	jsonStr := raw[start : end+1]
+	
+	// Try to repair common JSON issues
+	jsonStr = repairJSON(jsonStr)
+	
 	var rows []map[string]interface{}
 	if err := json.Unmarshal([]byte(jsonStr), &rows); err != nil {
-		preview := jsonStr
-		if len(preview) > 300 {
-			preview = preview[:300] + "..."
+		// If parsing fails, try to salvage partial data
+		jsonStr = removeIncompleteLastObject(jsonStr)
+		if err2 := json.Unmarshal([]byte(jsonStr), &rows); err2 != nil {
+			preview := jsonStr
+			if len(preview) > 500 {
+				preview = preview[:500] + "..."
+			}
+			return nil, fmt.Errorf(
+				"unmarshal JSON: %w\njson was: %s",
+				err, preview,
+			)
 		}
-		return nil, fmt.Errorf(
-			"unmarshal JSON: %w\njson was: %s",
-			err, preview,
-		)
 	}
 	return rows, nil
 }
+
+// repairJSON fixes common JSON formatting issues
+func repairJSON(s string) string {
+	// Remove trailing commas before closing brackets
+	s = strings.ReplaceAll(s, ",]", "]")
+	s = strings.ReplaceAll(s, ", ]", "]")
+	s = strings.ReplaceAll(s, " ,]", "]")
+	
+	// Remove trailing commas before closing braces
+	s = strings.ReplaceAll(s, ",}", "}")
+	s = strings.ReplaceAll(s, ", }", "}")
+	
+	return strings.TrimSpace(s)
+}
+
+// removeIncompleteLastObject removes the last object if it's incomplete
+func removeIncompleteLastObject(s string) string {
+	// Find the last complete object by looking for the second-to-last closing brace
+	lastBrace := strings.LastIndex(s, "}")
+	if lastBrace == -1 {
+		return "[]"
+	}
+	
+	// Find the second-to-last closing brace
+	beforeLast := s[:lastBrace]
+	secondLastBrace := strings.LastIndex(beforeLast, "}")
+	if secondLastBrace == -1 {
+		// Only one object, and it might be complete
+		return s
+	}
+	
+	// Check if there's content after the second-to-last brace (excluding whitespace, commas)
+	afterSecond := strings.TrimSpace(s[secondLastBrace+1:])
+	if len(afterSecond) > 0 && afterSecond[0] == ',' {
+		afterSecond = strings.TrimSpace(afterSecond[1:])
+	}
+	
+	// If there's incomplete data, remove it
+	if len(afterSecond) > 2 && !strings.HasSuffix(afterSecond, "}]") {
+		return s[:secondLastBrace+1] + "]"
+	}
+	
+	return s
+}
+
+

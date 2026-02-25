@@ -8,8 +8,8 @@ import (
 	// The underscore import loads the sqlite3 driver
 	// without us using it directly by name.
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/satyammistari/seeddb/internal/generator"
-	"github.com/satyammistari/seeddb/internal/schema"
+	"github.com/satyammistari/db-seed-ai/internal/generator"
+	"github.com/satyammistari/db-seed-ai/internal/schema"
 )
 
 // SQLiteInserter holds the connection to SQLite.
@@ -148,3 +148,5 @@ func (s *SQLiteInserter) Close() error {
 
 // Compile-time interface check: build fails if SQLiteInserter is missing any method.
 var _ Inserter = (*SQLiteInserter)(nil)
+
+

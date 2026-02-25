@@ -7,11 +7,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/satyammistari/seeddb/internal/generator"
-	"github.com/satyammistari/seeddb/internal/inserter"
-	"github.com/satyammistari/seeddb/internal/reporter"
-	"github.com/satyammistari/seeddb/internal/schema"
-	"github.com/satyammistari/seeddb/internal/validator"
+	"github.com/satyammistari/db-seed-ai/internal/generator"
+	"github.com/satyammistari/db-seed-ai/internal/inserter"
+	"github.com/satyammistari/db-seed-ai/internal/reporter"
+	"github.com/satyammistari/db-seed-ai/internal/schema"
+	"github.com/satyammistari/db-seed-ai/internal/tui"
+	"github.com/satyammistari/db-seed-ai/internal/validator"
 )
 
 const version = "0.1.0"
@@ -23,6 +24,11 @@ func main() {
 	}
 	cmd := os.Args[1]
 	switch cmd {
+	case "ui":
+		if err := tui.Run(); err != nil {
+			fmt.Fprintf(os.Stderr, "UI error: %v\n", err)
+			os.Exit(1)
+		}
 	case "preview":
 		runPreview(os.Args[2:])
 	case "seed":
@@ -31,6 +37,8 @@ func main() {
 		runValidate(os.Args[2:])
 	case "version", "-v", "--version":
 		fmt.Println("db-seed-ai v" + version)
+	case "help", "-h", "--help":
+		printUsage()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", cmd)
 		printUsage()
@@ -42,14 +50,18 @@ func printUsage() {
 	fmt.Fprint(os.Stderr, `db-seed-ai — generate seed data with local AI
 
 Usage:
+  seeddb ui                                    Launch interactive terminal UI
   seeddb preview  --schema <file> [--table <name>] [--rows N] [--model M]
   seeddb seed     --schema <file> --db <conn> [--table <name>] [--rows N] [--dry-run] [--model M] [--batch-size N] [--style S]
   seeddb validate --schema <file> [--rows N]
 
 Commands:
+  ui        Launch interactive terminal UI (recommended)
   preview   Show generated rows (no DB)
   seed      Generate and insert into database
   validate  Generate sample and validate constraints
+  help      Show this help message
+  version   Show version information
 `)
 }
 
@@ -92,7 +104,7 @@ func runPreview(args []string) {
 	cfg.Style = generator.Style(*style)
 
 	reporter.Info(fmt.Sprintf("  Asking %s to generate %d rows...\n", cfg.Model, *rows))
-	prompt := generator.BuildPrompt(t, tables, *rows, cfg.Style, nil)
+	prompt := generator.BuildPrompt(t, *rows, nil, string(cfg.Style), nil)
 	raw, err := generator.CallOllama(cfg, prompt)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Ollama error:", err)
@@ -193,7 +205,7 @@ func runSeed(args []string) {
 			}
 		}
 
-		prompt := generator.BuildPrompt(t, tables, *rows, cfg.Style, refIDs)
+		prompt := generator.BuildPrompt(t, *rows, nil, string(cfg.Style), refIDs)
 		raw, err := generator.CallOllama(cfg, prompt)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Ollama:", err)
@@ -263,7 +275,7 @@ func runValidate(args []string) {
 	cfg.Model = *model
 	var allErrs []string
 	for _, t := range tables {
-		prompt := generator.BuildPrompt(t, tables, *rows, generator.StyleRealistic, nil)
+		prompt := generator.BuildPrompt(t, *rows, nil, string(generator.StyleRealistic), nil)
 		raw, err := generator.CallOllama(cfg, prompt)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Ollama:", err)
@@ -303,3 +315,5 @@ func joinNames(names []string) string {
 	}
 	return strings.Join(names, " → ")
 }
+
+

@@ -3,7 +3,24 @@ package schema
 // Schema wraps a slice of tables for historical API compatibility.
 // prompt.go uses *schema.Schema to pass the full set of tables.
 type Schema struct {
-	Tables []*Table
+	Tables      []*Table
+	InsertOrder []string          // Table names in dependency order
+	TableMap    map[string]*Table // Quick lookup by table name
+}
+
+// NewSchema creates a Schema from a list of tables (already in dependency order).
+func NewSchema(tables []*Table) *Schema {
+	tableMap := make(map[string]*Table)
+	insertOrder := make([]string, len(tables))
+	for i, t := range tables {
+		tableMap[t.Name] = t
+		insertOrder[i] = t.Name
+	}
+	return &Schema{
+		Tables:      tables,
+		InsertOrder: insertOrder,
+		TableMap:    tableMap,
+	}
 }
 
 // Table represents a parsed database table.
@@ -60,3 +77,16 @@ func (t *Table) NonAutoColumns() []Column {
 	}
 	return out
 }
+
+// FKColumns returns columns that have foreign key constraints.
+func (t *Table) FKColumns() []Column {
+	var out []Column
+	for _, c := range t.Columns {
+		if c.ForeignKey != nil {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+

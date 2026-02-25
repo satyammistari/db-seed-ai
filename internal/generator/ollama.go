@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/satyammistari/seeddb/internal/schema"
+	"github.com/satyammistari/db-seed-ai/internal/schema"
 )
 
 // OllamaClient wraps the Ollama HTTP API.
@@ -128,3 +128,5 @@ const StyleRealistic Style = "realistic"
 func joinStyle(s Style) string {
 	return strings.ToLower(string(s))
 }
+
+

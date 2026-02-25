@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/satyammistari/seeddb/internal/generator"
-	"github.com/satyammistari/seeddb/internal/schema"
+	"github.com/satyammistari/db-seed-ai/internal/generator"
+	"github.com/satyammistari/db-seed-ai/internal/schema"
 )
 
 // Inserter is the interface both SQLiteInserter and PostgresInserter implement.
@@ -165,3 +165,5 @@ func (p *PostgresInserter) Close() error {
 
 // Compile-time interface check: build fails if PostgresInserter is missing methods.
 var _ Inserter = (*PostgresInserter)(nil)
+
+

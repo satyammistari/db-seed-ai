@@ -12,6 +12,15 @@ func ParseFile(content string) ([]*Table, error) {
 	return topologicalSort(tables), nil
 }
 
+// ParseFileToSchema reads a SQL file and returns a Schema with all metadata.
+func ParseFileToSchema(content string) (*Schema, error) {
+	tables, err := ParseFile(content)
+	if err != nil {
+		return nil, err
+	}
+	return NewSchema(tables), nil
+}
+
 func parseTables(content string) []*Table {
 	var tables []*Table
 	// Normalize: single line per statement for simpler parsing
@@ -282,5 +291,7 @@ func TableByName(tables []*Table, name string) *Table {
 	}
 	return nil
 }
+
+
 
 
