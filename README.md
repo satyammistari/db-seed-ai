@@ -175,17 +175,6 @@ characters. Good for unit tests.
 strings, boundary numbers, and special characters.
 Good for QA testing.
 
-## Why Local AI (Ollama) over OpenAI?
-
-Three reasons. No API key required — works for every
-developer on your team with zero setup friction. No cost
-per request — generate 100,000 rows without a bill.
-No data leaves your machine — your schema and any
-sensitive structure stays local.
-
-`llama3` running on a modern laptop is more than capable
-enough for generating realistic names, emails, and
-business data. You do not need GPT-4 for this task.
 
 ## Architecture
 
@@ -200,13 +189,7 @@ Six components, one job each:
 
 ## Engineering Trade-offs
 
-**1. Local Ollama over OpenAI API**
-Zero cost, zero API keys, works offline. The quality
-trade-off is real but acceptable — llama3 generates
-good-enough seed data even if it can't match GPT-4
-on complex reasoning tasks.
-
-**2. Topological sort for insert order**
+**1. Topological sort for insert order**
 Foreign keys mean you can't insert orders before users
 exist. We build a dependency graph from your schema
 and do a DFS topological sort. Categories go in first,
@@ -214,13 +197,13 @@ products second (they reference categories), orders
 third (they reference users), and so on. Circular FKs
 are detected and reported as errors.
 
-**3. Transactions per batch**
+**2. Transactions per batch**
 Every batch of 500 rows is wrapped in a BEGIN/COMMIT.
 If one batch fails, only that batch rolls back — not
 the entire run. This means a 10,000 row seed that fails
 at row 8,000 doesn't waste the first 7,999 rows.
 
-**4. Fetch existing IDs before generating**
+**3. Fetch existing IDs before generating**
 Before asking the AI to generate rows for `orders`, we
 run `SELECT id FROM users LIMIT 1000` and pass those
 real IDs to the AI. This is what makes FK relationships
