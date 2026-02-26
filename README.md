@@ -187,7 +187,7 @@ Six components, one job each:
 - `validator/`   Checks rows against your constraints
 - `reporter/`    Colored terminal output and progress
 
-## Engineering Trade-offs
+## Trade-offs
 
 **1. Topological sort for insert order**
 Foreign keys mean you can't insert orders before users
